@@ -1,16 +1,26 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FileUploadZone } from "@/components/FileUploadZone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Download, FileCheck2, ArrowRight, Copy } from "lucide-react";
+import { Download, FileCheck2, ArrowRight, Copy, LogOut } from "lucide-react";
 import { parseCSV, findCommonUsernames, generateCSV, downloadCSV } from "@/utils/csvProcessor";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
   const [result, setResult] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logout realizado com sucesso!");
+    navigate("/login");
+  };
 
   const handleFile1 = (file: File) => {
     setFile1(file);
@@ -77,6 +87,17 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-6xl mx-auto">
+        <div className="flex justify-end mb-4">
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+          >
+            <LogOut className="mr-2 w-4 h-4" />
+            Sair
+          </Button>
+        </div>
+        
         <header className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
           <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 bg-primary/10 rounded-full">
             <FileCheck2 className="w-5 h-5 text-primary" />
