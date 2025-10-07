@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FileUploadZone } from "@/components/FileUploadZone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Download, FileCheck2, ArrowRight } from "lucide-react";
+import { Download, FileCheck2, ArrowRight, Copy } from "lucide-react";
 import { parseCSV, findCommonUsernames, generateCSV, downloadCSV } from "@/utils/csvProcessor";
 import { toast } from "sonner";
 
@@ -59,6 +59,18 @@ const Index = () => {
     if (result) {
       downloadCSV(result, "usernames_comuns.csv");
       toast.success("Arquivo baixado com sucesso!");
+    }
+  };
+
+  const handleCopy = async () => {
+    if (result) {
+      try {
+        await navigator.clipboard.writeText(result);
+        toast.success("Lista copiada para área de transferência!");
+      } catch (error) {
+        toast.error("Erro ao copiar para área de transferência");
+        console.error(error);
+      }
     }
   };
 
@@ -120,10 +132,16 @@ const Index = () => {
                   Usernames encontrados em ambos os arquivos
                 </p>
               </div>
-              <Button onClick={handleDownload} className="bg-primary hover:bg-primary/90">
-                <Download className="mr-2 w-4 h-4" />
-                Baixar CSV
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleCopy} variant="outline" className="hover:bg-primary/10">
+                  <Copy className="mr-2 w-4 h-4" />
+                  Copiar
+                </Button>
+                <Button onClick={handleDownload} className="bg-primary hover:bg-primary/90">
+                  <Download className="mr-2 w-4 h-4" />
+                  Baixar CSV
+                </Button>
+              </div>
             </div>
             
             <div className="bg-muted/50 rounded-lg p-6 mt-4">
