@@ -4,14 +4,15 @@ import { FileUploadZone } from "@/components/FileUploadZone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Download, FileCheck2, ArrowRight, Copy, LogOut } from "lucide-react";
-import { parseCSV, findCommonUsernames, generateCSV, downloadCSV } from "@/utils/csvProcessor";
+import { parseCSV, findCommonUsers, generateCSV, downloadCSV } from "@/utils/csvProcessor";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
-  const [result, setResult] = useState<string>("");
+  const [resultUsernames, setResultUsernames] = useState<string>("");
+  const [resultFullNames, setResultFullNames] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -24,12 +25,14 @@ const Index = () => {
 
   const handleFile1 = (file: File) => {
     setFile1(file);
-    setResult("");
+    setResultUsernames("");
+    setResultFullNames("");
   };
 
   const handleFile2 = (file: File) => {
     setFile2(file);
-    setResult("");
+    setResultUsernames("");
+    setResultFullNames("");
   };
 
   const processFiles = async () => {
@@ -47,15 +50,22 @@ const Index = () => {
       const users1 = parseCSV(text1);
       const users2 = parseCSV(text2);
 
-      const commonUsers = findCommonUsernames(users1, users2);
+      const commonUsers = findCommonUsers(users1, users2);
 
       if (commonUsers.length === 0) {
         toast.warning("Nenhum username comum encontrado");
-        setResult("");
+        setResultUsernames("");
+        setResultFullNames("");
       } else {
-        const csv = generateCSV(commonUsers);
-        setResult(csv);
-        toast.success(`${commonUsers.length} usernames comuns encontrados!`);
+        const usernames = commonUsers.map(u => u.username);
+        const fullNames = commonUsers.map(u => u.fullName);
+        
+        const csvUsernames = generateCSV(usernames);
+        const csvFullNames = generateCSV(fullNames);
+        
+        setResultUsernames(csvUsernames);
+        setResultFullNames(csvFullNames);
+        toast.success(`${commonUsers.length} usuários comuns encontrados!`);
       }
     } catch (error) {
       toast.error("Erro ao processar arquivos. Verifique o formato.");
@@ -65,18 +75,37 @@ const Index = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (result) {
-      downloadCSV(result, "usernames_comuns.csv");
-      toast.success("Arquivo baixado com sucesso!");
+  const handleDownloadUsernames = () => {
+    if (resultUsernames) {
+      downloadCSV(resultUsernames, "usernames_comuns.csv");
+      toast.success("Usernames baixados com sucesso!");
     }
   };
 
-  const handleCopy = async () => {
-    if (result) {
+  const handleDownloadFullNames = () => {
+    if (resultFullNames) {
+      downloadCSV(resultFullNames, "nomes_completos.csv");
+      toast.success("Nomes completos baixados com sucesso!");
+    }
+  };
+
+  const handleCopyUsernames = async () => {
+    if (resultUsernames) {
       try {
-        await navigator.clipboard.writeText(result);
-        toast.success("Lista copiada para área de transferência!");
+        await navigator.clipboard.writeText(resultUsernames);
+        toast.success("Usernames copiados para área de transferência!");
+      } catch (error) {
+        toast.error("Erro ao copiar para área de transferência");
+        console.error(error);
+      }
+    }
+  };
+
+  const handleCopyFullNames = async () => {
+    if (resultFullNames) {
+      try {
+        await navigator.clipboard.writeText(resultFullNames);
+        toast.success("Nomes completos copiados para área de transferência!");
       } catch (error) {
         toast.error("Erro ao copiar para área de transferência");
         console.error(error);
@@ -144,31 +173,58 @@ const Index = () => {
           </div>
         </Card>
 
-        {result && (
-          <Card className="p-8 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Resultado</h2>
-                <p className="text-muted-foreground">
-                  Usernames encontrados em ambos os arquivos
-                </p>
+        {resultUsernames && (
+          <div className="space-y-6">
+            <Card className="p-8 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Usernames</h2>
+                  <p className="text-muted-foreground">
+                    Usernames encontrados em ambos os arquivos
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopyUsernames} variant="outline" className="hover:bg-primary/10">
+                    <Copy className="mr-2 w-4 h-4" />
+                    Copiar
+                  </Button>
+                  <Button onClick={handleDownloadUsernames} className="bg-primary hover:bg-primary/90">
+                    <Download className="mr-2 w-4 h-4" />
+                    Baixar CSV
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleCopy} variant="outline" className="hover:bg-primary/10">
-                  <Copy className="mr-2 w-4 h-4" />
-                  Copiar
-                </Button>
-                <Button onClick={handleDownload} className="bg-primary hover:bg-primary/90">
-                  <Download className="mr-2 w-4 h-4" />
-                  Baixar CSV
-                </Button>
+              
+              <div className="bg-muted/50 rounded-lg p-6 mt-4">
+                <p className="text-sm font-mono break-all text-foreground">{resultUsernames}</p>
               </div>
-            </div>
-            
-            <div className="bg-muted/50 rounded-lg p-6 mt-4">
-              <p className="text-sm font-mono break-all text-foreground">{result}</p>
-            </div>
-          </Card>
+            </Card>
+
+            <Card className="p-8 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Nomes Completos</h2>
+                  <p className="text-muted-foreground">
+                    Nomes dos perfis do Instagram na mesma ordem
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopyFullNames} variant="outline" className="hover:bg-primary/10">
+                    <Copy className="mr-2 w-4 h-4" />
+                    Copiar
+                  </Button>
+                  <Button onClick={handleDownloadFullNames} className="bg-primary hover:bg-primary/90">
+                    <Download className="mr-2 w-4 h-4" />
+                    Baixar CSV
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="bg-muted/50 rounded-lg p-6 mt-4">
+                <p className="text-sm font-mono break-all text-foreground">{resultFullNames}</p>
+              </div>
+            </Card>
+          </div>
         )}
       </div>
     </div>

@@ -1,38 +1,44 @@
-export const parseCSV = (text: string): string[] => {
+export interface UserData {
+  username: string;
+  fullName: string;
+}
+
+export const parseCSV = (text: string): UserData[] => {
   const lines = text.split('\n').filter(line => line.trim());
-  const usernames: string[] = [];
+  const users: UserData[] = [];
   
   // Skip header line
   for (let i = 1; i < lines.length; i++) {
     const columns = lines[i].split(',');
-    if (columns.length >= 2) {
-      // User Name is the second column (index 1)
+    if (columns.length >= 3) {
+      // User Name is the second column (index 1), Full Name is third column (index 2)
       const username = columns[1].trim();
+      const fullName = columns[2].trim();
       if (username) {
-        usernames.push(username);
+        users.push({ username, fullName });
       }
     }
   }
   
-  return usernames;
+  return users;
 };
 
-export const findCommonUsernames = (file1Users: string[], file2Users: string[]): string[] => {
-  const set1 = new Set(file1Users);
-  const set2 = new Set(file2Users);
+export const findCommonUsers = (file1Users: UserData[], file2Users: UserData[]): UserData[] => {
+  const map1 = new Map(file1Users.map(u => [u.username, u.fullName]));
+  const map2 = new Map(file2Users.map(u => [u.username, u.fullName]));
   
-  const common: string[] = [];
-  set1.forEach(user => {
-    if (set2.has(user)) {
-      common.push(user);
+  const common: UserData[] = [];
+  map1.forEach((fullName, username) => {
+    if (map2.has(username)) {
+      common.push({ username, fullName });
     }
   });
   
   return common;
 };
 
-export const generateCSV = (usernames: string[]): string => {
-  return usernames.join(',');
+export const generateCSV = (data: string[]): string => {
+  return data.join(',');
 };
 
 export const downloadCSV = (content: string, filename: string) => {
