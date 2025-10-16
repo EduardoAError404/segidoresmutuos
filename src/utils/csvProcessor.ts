@@ -49,6 +49,10 @@ export const generateCSV = (data: string[]): string => {
   return data.join(',');
 };
 
+export const generateUserFormat = (users: UserData[]): string => {
+  return users.map(u => `${u.username}:${u.fullName}`).join('\n');
+};
+
 export const downloadCSV = (content: string, filename: string) => {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');

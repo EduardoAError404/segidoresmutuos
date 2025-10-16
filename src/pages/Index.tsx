@@ -4,7 +4,7 @@ import { FileUploadZone } from "@/components/FileUploadZone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Download, FileCheck2, ArrowRight, Copy, LogOut } from "lucide-react";
-import { parseCSV, findCommonUsers, generateCSV, downloadCSV } from "@/utils/csvProcessor";
+import { parseCSV, findCommonUsers, generateCSV, generateUserFormat, downloadCSV } from "@/utils/csvProcessor";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -13,6 +13,7 @@ const Index = () => {
   const [file2, setFile2] = useState<File | null>(null);
   const [resultUsernames, setResultUsernames] = useState<string>("");
   const [resultFullNames, setResultFullNames] = useState<string>("");
+  const [resultFormatted, setResultFormatted] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -27,12 +28,14 @@ const Index = () => {
     setFile1(file);
     setResultUsernames("");
     setResultFullNames("");
+    setResultFormatted("");
   };
 
   const handleFile2 = (file: File) => {
     setFile2(file);
     setResultUsernames("");
     setResultFullNames("");
+    setResultFormatted("");
   };
 
   const processFiles = async () => {
@@ -56,15 +59,18 @@ const Index = () => {
         toast.warning("Nenhum username comum encontrado");
         setResultUsernames("");
         setResultFullNames("");
+        setResultFormatted("");
       } else {
         const usernames = commonUsers.map(u => u.username);
         const fullNames = commonUsers.map(u => u.fullName);
         
-        const csvUsernames = generateCSV(usernames);
-        const csvFullNames = generateCSV(fullNames);
-        
-        setResultUsernames(csvUsernames);
-        setResultFullNames(csvFullNames);
+      const csvUsernames = generateCSV(usernames);
+      const csvFullNames = generateCSV(fullNames);
+      const formattedList = generateUserFormat(commonUsers);
+      
+      setResultUsernames(csvUsernames);
+      setResultFullNames(csvFullNames);
+      setResultFormatted(formattedList);
         toast.success(`${commonUsers.length} usuários comuns encontrados!`);
       }
     } catch (error) {
@@ -106,6 +112,25 @@ const Index = () => {
       try {
         await navigator.clipboard.writeText(resultFullNames);
         toast.success("Nomes completos copiados para área de transferência!");
+      } catch (error) {
+        toast.error("Erro ao copiar para área de transferência");
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDownloadFormatted = () => {
+    if (resultFormatted) {
+      downloadCSV(resultFormatted, "usuarios_formatados.txt");
+      toast.success("Lista formatada baixada com sucesso!");
+    }
+  };
+
+  const handleCopyFormatted = async () => {
+    if (resultFormatted) {
+      try {
+        await navigator.clipboard.writeText(resultFormatted);
+        toast.success("Lista formatada copiada para área de transferência!");
       } catch (error) {
         toast.error("Erro ao copiar para área de transferência");
         console.error(error);
@@ -222,6 +247,31 @@ const Index = () => {
               
               <div className="bg-muted/50 rounded-lg p-6 mt-4">
                 <p className="text-sm font-mono break-all text-foreground">{resultFullNames}</p>
+              </div>
+            </Card>
+
+            <Card className="p-8 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Lista Formatada</h2>
+                  <p className="text-muted-foreground">
+                    Formato username:Nome (uma por linha)
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopyFormatted} variant="outline" className="hover:bg-primary/10">
+                    <Copy className="mr-2 w-4 h-4" />
+                    Copiar
+                  </Button>
+                  <Button onClick={handleDownloadFormatted} className="bg-primary hover:bg-primary/90">
+                    <Download className="mr-2 w-4 h-4" />
+                    Baixar TXT
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="bg-muted/50 rounded-lg p-6 mt-4 max-h-80 overflow-y-auto">
+                <pre className="text-sm font-mono whitespace-pre-wrap text-foreground">{resultFormatted}</pre>
               </div>
             </Card>
           </div>
