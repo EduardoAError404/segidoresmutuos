@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { FileUploadZone } from "@/components/FileUploadZone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -141,7 +141,12 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end gap-2 mb-4">
+          <Link to="/instagram">
+            <Button variant="secondary">
+              Instagram Scraper
+            </Button>
+          </Link>
           <Button
             onClick={handleLogout}
             variant="outline"
