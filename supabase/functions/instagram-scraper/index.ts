@@ -160,22 +160,40 @@ Deno.serve(async (req) => {
     console.log(`Processing request for ${username} - ${type}`);
     
     const allUsers = await getInstagramData(username, type, sessionId);
+    console.log(`Total users fetched: ${allUsers.length}`);
     
     // Filter users without names
-    const usersWithNames = allUsers.filter(user => user.full_name && user.full_name.trim().length > 0);
-    console.log(`Filtered to ${usersWithNames.length} users with names (from ${allUsers.length} total)`);
+    const usersWithNames = allUsers.filter(user => {
+      const hasName = user.full_name && user.full_name.trim().length > 0;
+      if (!hasName) {
+        console.log(`Filtered out user without name: ${user.username}`);
+      }
+      return hasName;
+    });
+    console.log(`Users with names: ${usersWithNames.length} (filtered out ${allUsers.length - usersWithNames.length})`);
     
     // Classify gender for each user
     const maleUsers: UserData[] = [];
+    let classifiedCount = 0;
+    
     for (const user of usersWithNames) {
-      const gender = await classifyGender(user.full_name);
-      console.log(`User ${user.username} (${user.full_name}): ${gender}`);
-      if (gender === 'male') {
-        maleUsers.push(user);
+      try {
+        const gender = await classifyGender(user.full_name);
+        classifiedCount++;
+        console.log(`[${classifiedCount}/${usersWithNames.length}] ${user.username} (${user.full_name}): ${gender}`);
+        
+        if (gender === 'male') {
+          maleUsers.push(user);
+          console.log(`✓ Added male user: ${user.username}`);
+        } else {
+          console.log(`✗ Skipped ${gender} user: ${user.username}`);
+        }
+      } catch (error) {
+        console.error(`Error classifying ${user.username}:`, error);
       }
     }
     
-    console.log(`Final result: ${maleUsers.length} male users`);
+    console.log(`Classification complete: ${maleUsers.length} male users out of ${usersWithNames.length} total`);
     const csv = formatAsCSV(maleUsers);
     
     return new Response(
