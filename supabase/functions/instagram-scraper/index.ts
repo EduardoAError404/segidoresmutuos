@@ -132,9 +132,11 @@ async function classifyGender(name: string): Promise<'male' | 'female' | 'unknow
 
 function formatAsCSV(users: UserData[]): string {
   const header = 'ID,User Name,Full Name,Profile URL,Verified\n';
-  const rows = users.map((user, index) => {
-    return `${index + 1},${user.username},"${user.full_name}",https://www.instagram.com/${user.username},${user.is_verified ? 'Yes' : 'No'}`;
-  }).join('\n');
+  const rows = users
+    .filter(user => user.full_name && user.full_name.trim().length > 0)
+    .map((user, index) => {
+      return `${index + 1},${user.username},"${user.full_name}",https://www.instagram.com/${user.username},${user.is_verified ? 'Yes' : 'No'}`;
+    }).join('\n');
   
   return header + rows;
 }

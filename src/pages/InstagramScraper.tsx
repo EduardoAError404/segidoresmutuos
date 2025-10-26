@@ -63,12 +63,13 @@ const InstagramScraper = () => {
             const columns = line.split(',');
             const username = columns[1]?.trim();
             const fullName = columns[2]?.replace(/"/g, '').trim();
-            if (username && fullName) {
+            // Only include if BOTH username AND fullName exist and are not empty
+            if (username && fullName && username.length > 0 && fullName.length > 0) {
               return `${username}:${fullName}`;
             }
             return null;
           })
-          .filter(Boolean)
+          .filter(item => item !== null)
           .join('\n');
         
         setFormattedList(formatted);
