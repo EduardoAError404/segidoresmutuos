@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Download, FileCheck2, ArrowRight, Copy, LogOut } from "lucide-react";
 import { parseCSV, findCommonUsers, generateCSV, generateUserFormat, downloadCSV } from "@/utils/csvProcessor";
+import { filterMaleUsers, generateMaleUserFormat, getGenderStats } from "@/utils/csvProcessorWithGender";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -14,6 +15,8 @@ const Index = () => {
   const [resultUsernames, setResultUsernames] = useState<string>("");
   const [resultFullNames, setResultFullNames] = useState<string>("");
   const [resultFormatted, setResultFormatted] = useState<string>("");
+  const [resultMaleFiltered, setResultMaleFiltered] = useState<string>("");
+  const [isFilteringGender, setIsFilteringGender] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -131,6 +134,62 @@ const Index = () => {
       try {
         await navigator.clipboard.writeText(resultFormatted);
         toast.success("Lista formatada copiada para área de transferência!");
+      } catch (error) {
+        toast.error("Erro ao copiar para área de transferência");
+        console.error(error);
+      }
+    }
+  };
+
+  const handleFilterMaleUsers = async () => {
+    if (!file1 || !file2) {
+      toast.error("Por favor, processe os arquivos primeiro");
+      return;
+    }
+
+    setIsFilteringGender(true);
+
+    try {
+      const text1 = await file1.text();
+      const text2 = await file2.text();
+
+      const users1 = parseCSV(text1);
+      const users2 = parseCSV(text2);
+
+      const commonUsers = findCommonUsers(users1, users2);
+
+      if (commonUsers.length === 0) {
+        toast.warning("Nenhum usuário comum encontrado");
+        setResultMaleFiltered("");
+      } else {
+        toast.info("Analisando nomes com IA... Isso pode levar alguns segundos.");
+        
+        const maleFilteredList = await generateMaleUserFormat(commonUsers);
+        const stats = await getGenderStats(commonUsers);
+        
+        setResultMaleFiltered(maleFilteredList);
+        toast.success(`${stats.male} usuários masculinos encontrados de ${stats.total} total!`);
+      }
+    } catch (error) {
+      toast.error("Erro ao filtrar usuários. Verifique a configuração da API.");
+      console.error(error);
+    } finally {
+      setIsFilteringGender(false);
+    }
+  };
+
+  const handleDownloadMaleFiltered = () => {
+    if (resultMaleFiltered) {
+      downloadCSV(resultMaleFiltered, "usuarios_masculinos.txt");
+      toast.success("Lista de usuários masculinos baixada com sucesso!");
+    }
+  };
+
+  const handleCopyMaleFiltered = async () => {
+    if (resultMaleFiltered) {
+      try {
+        await navigator.clipboard.writeText(resultMaleFiltered);
+        toast.success("Lista de usuários masculinos copiada para área de transferência!");
       } catch (error) {
         toast.error("Erro ao copiar para área de transferência");
         console.error(error);
@@ -278,7 +337,49 @@ const Index = () => {
               <div className="bg-muted/50 rounded-lg p-6 mt-4 max-h-80 overflow-y-auto">
                 <pre className="text-sm font-mono whitespace-pre-wrap text-foreground">{resultFormatted}</pre>
               </div>
+              
+              <div className="mt-6 flex justify-center">
+                <Button
+                  onClick={handleFilterMaleUsers}
+                  disabled={isFilteringGender}
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-600 to-blue-800 hover:opacity-90 transition-opacity"
+                >
+                  {isFilteringGender ? (
+                    "Filtrando com IA..."
+                  ) : (
+                    "🔍 Filtrar Apenas Usuários Masculinos (IA)"
+                  )}
+                </Button>
+              </div>
             </Card>
+
+            {resultMaleFiltered && (
+              <Card className="p-8 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500 border-2 border-blue-500">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2 text-blue-600">👨 Usuários Masculinos (Filtrado por IA)</h2>
+                    <p className="text-muted-foreground">
+                      Apenas usuários masculinos com nomes válidos
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleCopyMaleFiltered} variant="outline" className="hover:bg-blue-500/10 border-blue-500">
+                      <Copy className="mr-2 w-4 h-4" />
+                      Copiar
+                    </Button>
+                    <Button onClick={handleDownloadMaleFiltered} className="bg-blue-600 hover:bg-blue-700">
+                      <Download className="mr-2 w-4 h-4" />
+                      Baixar TXT
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-6 mt-4 max-h-80 overflow-y-auto border border-blue-200 dark:border-blue-800">
+                  <pre className="text-sm font-mono whitespace-pre-wrap text-foreground">{resultMaleFiltered}</pre>
+                </div>
+              </Card>
+            )}
           </div>
         )}
       </div>
