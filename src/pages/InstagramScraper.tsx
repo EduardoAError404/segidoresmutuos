@@ -13,6 +13,7 @@ const InstagramScraper = () => {
   const [sessionId, setSessionId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<string>("");
+  const [formattedList, setFormattedList] = useState<string>("");
   const { toast } = useToast();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -53,9 +54,28 @@ const InstagramScraper = () => {
 
       if (data.success) {
         setResult(data.csv);
+        
+        // Generate formatted list (username:Nome)
+        const lines = data.csv.split('\n').slice(1); // Skip header
+        const formatted = lines
+          .filter(line => line.trim())
+          .map(line => {
+            const columns = line.split(',');
+            const username = columns[1]?.trim();
+            const fullName = columns[2]?.replace(/"/g, '').trim();
+            if (username && fullName) {
+              return `${username}:${fullName}`;
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .join('\n');
+        
+        setFormattedList(formatted);
+        
         toast({
           title: "Sucesso!",
-          description: `${data.count} usuários extraídos`,
+          description: `${data.count} usuários masculinos extraídos`,
         });
       } else {
         throw new Error(data.error || 'Erro desconhecido');
@@ -88,8 +108,28 @@ const InstagramScraper = () => {
     navigator.clipboard.writeText(result);
     toast({
       title: "Copiado!",
-      description: "Lista copiada para a área de transferência",
+      description: "CSV copiado para a área de transferência",
     });
+  };
+
+  const handleCopyFormatted = () => {
+    navigator.clipboard.writeText(formattedList);
+    toast({
+      title: "Copiado!",
+      description: "Lista formatada copiada para a área de transferência",
+    });
+  };
+
+  const handleDownloadFormatted = () => {
+    const blob = new Blob([formattedList], { type: 'text/plain;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `instagram_${username}_formatado_${Date.now()}.txt`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -161,26 +201,49 @@ const InstagramScraper = () => {
         </Card>
 
         {result && (
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold">Resultado</h3>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleCopy}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copiar
-                  </Button>
-                  <Button size="sm" onClick={handleDownload}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Baixar CSV
-                  </Button>
+          <>
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">CSV Completo (usuários masculinos com nome)</h3>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={handleCopy}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copiar
+                    </Button>
+                    <Button size="sm" onClick={handleDownload}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Baixar CSV
+                    </Button>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{result}</pre>
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
-                <pre className="text-xs font-mono whitespace-pre-wrap">{result}</pre>
+            </Card>
+
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">Lista Formatada (username:Nome)</h3>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={handleCopyFormatted}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copiar
+                    </Button>
+                    <Button size="sm" onClick={handleDownloadFormatted}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Baixar Lista
+                    </Button>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{formattedList}</pre>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </>
         )}
       </div>
     </div>
