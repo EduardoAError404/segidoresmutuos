@@ -1,9 +1,11 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// Edge function types are automatically available in Deno Deploy
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const LOVABLE_AI_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 interface UserData {
   id: string;
@@ -27,7 +29,7 @@ async function getInstagramData(username: string, type: 'followers' | 'following
   
   while (hasNextPage) {
     const queryHash = type === 'followers' ? 'c76146de99bb02f6415203be841dd25a' : 'd04b0a864b4b54837c0d870b0e77e076';
-    const variables = {
+    const variables: Record<string, any> = {
       id: userId,
       include_reel: true,
       fetch_mutual: false,
@@ -35,9 +37,9 @@ async function getInstagramData(username: string, type: 'followers' | 'following
       after: endCursor,
     };
     
-    const url = `https://www.instagram.com/graphql/query/?query_hash=${queryHash}&variables=${encodeURIComponent(JSON.stringify(variables))}`;
+    const url: string = `https://www.instagram.com/graphql/query/?query_hash=${queryHash}&variables=${encodeURIComponent(JSON.stringify(variables))}`;
     
-    const response = await fetch(url, {
+    const response: Response = await fetch(url, {
       headers: {
         'cookie': `sessionid=${sessionId}`,
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -49,7 +51,7 @@ async function getInstagramData(username: string, type: 'followers' | 'following
       throw new Error(`Instagram API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     const edgeKey = type === 'followers' ? 'edge_followed_by' : 'edge_follow';
     const edges = data.data.user[edgeKey].edges;
     
@@ -86,6 +88,48 @@ async function getUserId(username: string, sessionId: string): Promise<string | 
   return data?.graphql?.user?.id || null;
 }
 
+async function classifyGender(name: string): Promise<'male' | 'female' | 'unknown'> {
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_AI_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a name gender classifier. Respond ONLY with "male", "female", or "unknown". Consider names from all cultures and languages.' 
+          },
+          { 
+            role: 'user', 
+            content: `Classify the gender of this name: "${name}". Respond with only one word: male, female, or unknown.` 
+          }
+        ],
+        max_tokens: 10,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('AI classification error:', await response.text());
+      return 'unknown';
+    }
+
+    const data = await response.json();
+    const result = data.choices[0].message.content.trim().toLowerCase();
+    
+    if (result === 'male' || result === 'female') {
+      return result;
+    }
+    return 'unknown';
+  } catch (error) {
+    console.error('Error classifying gender:', error);
+    return 'unknown';
+  }
+}
+
 function formatAsCSV(users: UserData[]): string {
   const header = 'ID,User Name,Full Name,Profile URL,Verified\n';
   const rows = users.map((user, index) => {
@@ -113,19 +157,36 @@ Deno.serve(async (req) => {
 
     console.log(`Processing request for ${username} - ${type}`);
     
-    const users = await getInstagramData(username, type, sessionId);
-    const csv = formatAsCSV(users);
+    const allUsers = await getInstagramData(username, type, sessionId);
+    
+    // Filter users without names
+    const usersWithNames = allUsers.filter(user => user.full_name && user.full_name.trim().length > 0);
+    console.log(`Filtered to ${usersWithNames.length} users with names (from ${allUsers.length} total)`);
+    
+    // Classify gender for each user
+    const maleUsers: UserData[] = [];
+    for (const user of usersWithNames) {
+      const gender = await classifyGender(user.full_name);
+      console.log(`User ${user.username} (${user.full_name}): ${gender}`);
+      if (gender === 'male') {
+        maleUsers.push(user);
+      }
+    }
+    
+    console.log(`Final result: ${maleUsers.length} male users`);
+    const csv = formatAsCSV(maleUsers);
     
     return new Response(
-      JSON.stringify({ success: true, csv, count: users.length }),
+      JSON.stringify({ success: true, csv, count: maleUsers.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error in instagram-scraper:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
+        error: errorMessage,
         hint: 'Make sure your sessionId is valid. To get it: 1) Open Instagram in browser, 2) Open DevTools (F12), 3) Go to Application/Storage tab, 4) Find "sessionid" cookie'
       }),
       { 
