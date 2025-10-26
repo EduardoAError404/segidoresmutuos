@@ -1,5 +1,5 @@
 import { UserData } from './csvProcessor';
-import { detectGenderBatch, GenderDetectionResult } from './genderDetector';
+import { detectGenderBatch, GenderDetectionResult } from './genderDetectorServerless';
 
 export interface UserDataWithGender extends UserData {
   gender?: 'male' | 'female' | 'unknown';
