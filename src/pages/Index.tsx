@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Download, FileCheck2, ArrowRight, Copy, LogOut } from "lucide-react";
 import { parseCSV, findCommonUsers, generateCSV, generateUserFormat, downloadCSV } from "@/utils/csvProcessor";
-import { filterMaleUsers, generateMaleUserFormat, getGenderStats } from "@/utils/csvProcessorWithGender";
+import { filterMaleUsers, generateMaleUserFormat, getGenderStats } from "@/utils/csvProcessorWithGenderDirect";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -17,6 +17,7 @@ const Index = () => {
   const [resultFormatted, setResultFormatted] = useState<string>("");
   const [resultMaleFiltered, setResultMaleFiltered] = useState<string>("");
   const [isFilteringGender, setIsFilteringGender] = useState(false);
+  const [openaiApiKey, setOpenaiApiKey] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -147,6 +148,11 @@ const Index = () => {
       return;
     }
 
+    if (!openaiApiKey || openaiApiKey.trim().length === 0) {
+      toast.error("Por favor, insira sua API Key da OpenAI");
+      return;
+    }
+
     setIsFilteringGender(true);
 
     try {
@@ -164,14 +170,15 @@ const Index = () => {
       } else {
         toast.info("Analisando nomes com IA... Isso pode levar alguns segundos.");
         
-        const maleFilteredList = await generateMaleUserFormat(commonUsers);
-        const stats = await getGenderStats(commonUsers);
+        const maleFilteredList = await generateMaleUserFormat(commonUsers, openaiApiKey);
+        const stats = await getGenderStats(commonUsers, openaiApiKey);
         
         setResultMaleFiltered(maleFilteredList);
         toast.success(`${stats.male} usuários masculinos encontrados de ${stats.total} total!`);
       }
     } catch (error) {
-      toast.error("Erro ao filtrar usuários. Verifique a configuração da API.");
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      toast.error(`Erro: ${errorMessage}`);
       console.error(error);
     } finally {
       setIsFilteringGender(false);
@@ -338,19 +345,38 @@ const Index = () => {
                 <pre className="text-sm font-mono whitespace-pre-wrap text-foreground">{resultFormatted}</pre>
               </div>
               
-              <div className="mt-6 flex justify-center">
-                <Button
-                  onClick={handleFilterMaleUsers}
-                  disabled={isFilteringGender}
-                  size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-blue-800 hover:opacity-90 transition-opacity"
-                >
-                  {isFilteringGender ? (
-                    "Filtrando com IA..."
-                  ) : (
-                    "🔍 Filtrar Apenas Usuários Masculinos (IA)"
-                  )}
-                </Button>
+              <div className="mt-6 space-y-4">
+                <div className="max-w-2xl mx-auto">
+                  <label htmlFor="apikey" className="block text-sm font-medium mb-2">
+                    🔑 API Key da OpenAI (necessária para filtro com IA)
+                  </label>
+                  <input
+                    id="apikey"
+                    type="password"
+                    value={openaiApiKey}
+                    onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    placeholder="sk-proj-..."
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sua chave não é armazenada. Obtenha em: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">platform.openai.com/api-keys</a>
+                  </p>
+                </div>
+                
+                <div className="flex justify-center">
+                  <Button
+                    onClick={handleFilterMaleUsers}
+                    disabled={isFilteringGender || !openaiApiKey}
+                    size="lg"
+                    className="bg-gradient-to-r from-blue-600 to-blue-800 hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {isFilteringGender ? (
+                      "Filtrando com IA..."
+                    ) : (
+                      "🔍 Filtrar Apenas Usuários Masculinos (IA)"
+                    )}
+                  </Button>
+                </div>
               </div>
             </Card>
 
